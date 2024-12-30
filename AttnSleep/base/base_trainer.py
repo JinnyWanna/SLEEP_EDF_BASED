@@ -7,14 +7,15 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config, fold_id):
+    def __init__(self, model, criterion, metric_ftns, optimizer, config, fold_id, device=None): #device 인자 추가
         self.config = config
         self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
 
-        # setup GPU device if available, move model into configured device
-        self.device, device_ids = self._prepare_device(config['n_gpu'])
+        # 수정: 디바이스 설정 시 MPS까지 고려하도록 변경
+        self.device, device_ids = self._prepare_device(config['n_gpu'], device) # 이 부분에 device 추가
         self.model = model.to(self.device)
         if len(device_ids) > 1:
+            # 모델을 DataParallel로 래핑 (멀티 GPU 사용 시)
             self.model = torch.nn.DataParallel(model, device_ids=device_ids)
 
         self.criterion = criterion
@@ -27,7 +28,6 @@ class BaseTrainer:
         self.monitor = cfg_trainer.get('monitor', 'off')
         self.fold_id = fold_id
 
-        # configuration to monitor model performance and save best
         if self.monitor == 'off':
             self.mnt_mode = 'off'
             self.mnt_best = 0
@@ -43,6 +43,7 @@ class BaseTrainer:
         self.checkpoint_dir = config.save_dir
 
         if config.resume is not None:
+            # 체크포인트 로드
             self._resume_checkpoint(config.resume)
 
     @abstractmethod
@@ -63,27 +64,27 @@ class BaseTrainer:
         all_trgs = []
 
         for epoch in range(self.start_epoch, self.epochs + 1):
+            # 학습 논리를 호출 (_train_epoch은 Trainer에서 구현됨)
             result, epoch_outs, epoch_trgs = self._train_epoch(epoch, self.epochs)
 
-            # save logged informations into log dict
+            # 결과 로그 저장
             log = {'epoch': epoch}
             log.update(result)
             all_outs.extend(epoch_outs)
             all_trgs.extend(epoch_trgs)
-            # print logged informations to the screen
+            # 화면에 로그 출력
             for key, value in log.items():
                 self.logger.info('    {:15s}: {}'.format(str(key), value))
 
-            # evaluate model performance according to configured metric, save best checkpoint as model_best
-            best = False #True
+            # 성능 평가 및 체크포인트 저장
+            best = False
             if self.mnt_mode != 'off':
                 try:
-                    # check whether model performance improved or not, according to specified metric(mnt_metric)
                     improved = (self.mnt_mode == 'min' and log[self.mnt_metric] <= self.mnt_best) or \
                                (self.mnt_mode == 'max' and log[self.mnt_metric] >= self.mnt_best)
                 except KeyError:
-                    self.logger.warning("Warning: Metric '{}' is not found. "
-                                        "Model performance monitoring is disabled.".format(self.mnt_metric))
+                    self.logger.warning(f"Warning: Metric '{self.mnt_metric}' is not found. "
+                                        "Model performance monitoring is disabled.")
                     self.mnt_mode = 'off'
                     improved = False
 
@@ -95,13 +96,15 @@ class BaseTrainer:
                     not_improved_count += 1
 
                 if not_improved_count > self.early_stop:
-                    self.logger.info("Validation performance didn\'t improve for {} epochs. "
-                                     "Training stops.".format(self.early_stop))
+                    self.logger.info(f"Validation performance didn't improve for {self.early_stop} epochs. "
+                                     "Training stops.")
                     break
 
             if epoch % self.save_period == 0:
+                # 체크포인트 저장
                 self._save_checkpoint(epoch, save_best=best)
 
+        # 결과 저장
         outs_name = "outs_" + str(self.fold_id)
         trgs_name = "trgs_" + str(self.fold_id)
         np.save(self.config._save_dir / outs_name, all_outs)
@@ -110,30 +113,31 @@ class BaseTrainer:
         if self.fold_id == self.config["data_loader"]["args"]["num_folds"] - 1:
             self._calc_metrics()
 
-    def _prepare_device(self, n_gpu_use):
+    def _prepare_device(self, n_gpu_use, device=None):
         """
-        setup GPU device if available, move model into configured device
+        Setup device (GPU/MPS/CPU) and move model to the configured device
         """
-        n_gpu = torch.cuda.device_count()
-        if n_gpu_use > 0 and n_gpu == 0:
-            self.logger.warning("Warning: There\'s no GPU available on this machine,"
-                                "training will be performed on CPU.")
-            n_gpu_use = 0
-        if n_gpu_use > n_gpu:
-            self.logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
-                                "on this machine.".format(n_gpu_use, n_gpu))
-            n_gpu_use = n_gpu
-        device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
-        list_ids = list(range(n_gpu_use))
-        return device, list_ids
+        # 수정: device 인자가 명시적으로 전달된 경우 그대로 사용
+        if device:
+            return device, []
+
+        # 수정: MPS 지원 추가
+        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+            self.logger.info("Using Apple Silicon GPU (MPS)")  # 로깅 메시지 추가
+            return torch.device('mps'), []
+        elif torch.cuda.is_available() and n_gpu_use > 0:
+            self.logger.info("Using CUDA GPU")  # CUDA 사용 로깅 메시지 추가
+            n_gpu = torch.cuda.device_count()
+            n_gpu_use = min(n_gpu_use, n_gpu)
+            device_ids = list(range(n_gpu_use))
+            return torch.device(f'cuda:{device_ids[0]}'), device_ids
+        else:
+            self.logger.info("Using CPU")  # CPU 사용 로깅 메시지 추가
+            return torch.device('cpu'), []
 
     def _save_checkpoint(self, epoch, save_best=True):
         """
         Saving checkpoints
-
-        :param epoch: current epoch number
-        :param log: logging information of the epoch
-        :param save_best: if True, rename the saved checkpoint to 'model_best.pth'
         """
         arch = type(self.model).__name__
         state = {
@@ -144,9 +148,9 @@ class BaseTrainer:
             'monitor_best': self.mnt_best,
             'config': self.config
         }
-        filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(epoch))
+        filename = str(self.checkpoint_dir / f'checkpoint-epoch{epoch}.pth')
         torch.save(state, filename)
-        self.logger.info("Saving checkpoint: {} ...".format(filename))
+        self.logger.info(f"Saving checkpoint: {filename} ...")  # 체크포인트 저장 로그
         if save_best:
             best_path = str(self.checkpoint_dir / 'model_best.pth')
             torch.save(state, best_path)
@@ -155,29 +159,27 @@ class BaseTrainer:
     def _resume_checkpoint(self, resume_path):
         """
         Resume from saved checkpoints
-
-        :param resume_path: Checkpoint path to be resumed
         """
         resume_path = str(resume_path)
-        self.logger.info("Loading checkpoint: {} ...".format(resume_path))
+        self.logger.info(f"Loading checkpoint: {resume_path} ...")  # 체크포인트 로드 로그
         checkpoint = torch.load(resume_path)
         self.start_epoch = checkpoint['epoch'] + 1
         self.mnt_best = checkpoint['monitor_best']
 
-        # load architecture params from checkpoint.
+        # 모델 상태 로드
         if checkpoint['config']['arch'] != self.config['arch']:
             self.logger.warning("Warning: Architecture configuration given in config file is different from that of "
                                 "checkpoint. This may yield an exception while state_dict is being loaded.")
         self.model.load_state_dict(checkpoint['state_dict'])
 
-        # load optimizer state from checkpoint only when optimizer type is not changed.
+        # Optimizer 상태 로드
         if checkpoint['config']['optimizer']['type'] != self.config['optimizer']['type']:
             self.logger.warning("Warning: Optimizer type given in config file is different from that of checkpoint. "
                                 "Optimizer parameters not being resumed.")
         else:
             self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))
+        self.logger.info(f"Checkpoint loaded. Resume training from epoch {self.start_epoch}")
 
     def _calc_metrics(self):
         from sklearn.metrics import classification_report
@@ -185,30 +187,19 @@ class BaseTrainer:
         from sklearn.metrics import confusion_matrix
         from sklearn.metrics import accuracy_score
         import pandas as pd
-        import os
-        from os import walk
 
         n_folds = self.config["data_loader"]["args"]["num_folds"]
         all_outs = []
         all_trgs = []
 
-        outs_list = []
-        trgs_list = []
-        save_dir = os.path.abspath(os.path.join(self.checkpoint_dir, os.pardir))
-        for root, dirs, files in os.walk(save_dir):
-            for file in files:
-                if "outs" in file:
-                     outs_list.append(os.path.join(root, file))
-                if "trgs" in file:
-                     trgs_list.append(os.path.join(root, file))
+        for i in range(n_folds):
+            # 결과 파일 로드
+            outs = np.load(self.config._save_dir / f"outs_{i}.npy")
+            trgs = np.load(self.config._save_dir / f"trgs_{i}.npy")
+            all_outs.extend(outs)
+            all_trgs.extend(trgs)
 
-        if len(outs_list)==self.config["data_loader"]["args"]["num_folds"]:
-            for i in range(len(outs_list)):
-                outs = np.load(outs_list[i])
-                trgs = np.load(trgs_list[i])
-                all_outs.extend(outs)
-                all_trgs.extend(trgs)
-
+        # 성능 평가
         all_trgs = np.array(all_trgs).astype(int)
         all_outs = np.array(all_outs).astype(int)
 
@@ -219,22 +210,9 @@ class BaseTrainer:
         df["accuracy"] = accuracy_score(all_trgs, all_outs)
         df = df * 100
         file_name = self.config["name"] + "_classification_report.xlsx"
-        report_Save_path = os.path.join(save_dir, file_name)
-        df.to_excel(report_Save_path)
+        report_save_path = self.config._save_dir / file_name
+        df.to_excel(report_save_path)
 
         cm_file_name = self.config["name"] + "_confusion_matrix.torch"
-        cm_Save_path = os.path.join(save_dir, cm_file_name)
-        torch.save(cm, cm_Save_path)
-
-
-        # Uncomment if you want to copy some of the important files into the experiement folder
-        # from shutil import copyfile
-        # copyfile("model/model.py", os.path.join(self.checkpoint_dir, "model.py"))
-        # copyfile("model/loss.py", os.path.join(self.checkpoint_dir, "loss.py"))
-        # copyfile("trainer/trainer.py", os.path.join(self.checkpoint_dir, "trainer.py"))
-        # copyfile("train_Kfold_CV.py", os.path.join(self.checkpoint_dir, "train_Kfold_CV.py"))
-        # copyfile("config.json",  os.path.join(self.checkpoint_dir, "config.json"))
-        # copyfile("data_loader/data_loaders.py",  os.path.join(self.checkpoint_dir, "data_loaders.py"))
-
-
-
+        cm_save_path = self.config._save_dir / cm_file_name
+        torch.save(cm, cm_save_path)

@@ -1,6 +1,6 @@
 {
     "name": "Exp1",
-    "n_gpu": 1,
+    "n_gpu": 8,
 
     "arch": {
         "type": "AttnSleep",

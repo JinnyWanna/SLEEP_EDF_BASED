@@ -31,9 +31,8 @@ def weights_init_normal(m):
         torch.nn.init.constant_(m.bias.data, 0.0)
 
 
-def main(config, fold_id):
+def main(config, fold_id, device):
     batch_size = config["data_loader"]["args"]["batch_size"]
-
     logger = config.get_logger('train')
 
     # build model architecture, initialize weights, then print to console
@@ -47,19 +46,28 @@ def main(config, fold_id):
 
     # build optimizer
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-
     optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
 
-    data_loader, valid_data_loader, data_count = data_generator_np(folds_data[fold_id][0],
-                                                                   folds_data[fold_id][1], batch_size)
+    # move model to selected device
+    model.to(device)
+
+    # load data
+    data_loader, valid_data_loader, data_count = data_generator_np(
+        folds_data[fold_id][0],
+        folds_data[fold_id][1],
+        batch_size
+    )
     weights_for_each_class = calc_class_weight(data_count)
 
-    trainer = Trainer(model, criterion, metrics, optimizer,
-                      config=config,
-                      data_loader=data_loader,
-                      fold_id=fold_id,
-                      valid_data_loader=valid_data_loader,
-                      class_weights=weights_for_each_class)
+    trainer = Trainer(
+        model, criterion, metrics, optimizer,
+        config=config,
+        data_loader=data_loader,
+        fold_id=fold_id,
+        valid_data_loader=valid_data_loader,
+        class_weights=weights_for_each_class,
+        device=device  # 혹시 Trainer 내부에서 device를 활용한다면 넘김
+    )
 
     trainer.train()
 
@@ -71,12 +79,11 @@ if __name__ == '__main__':
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
     args.add_argument('-d', '--device', default="0", type=str,
-                      help='indices of GPUs to enable (default: all)')
+                      help='device to use: "cpu", "mps", or GPU index like "0" (default: 0)')
     args.add_argument('-f', '--fold_id', type=str,
                       help='fold_id')
     args.add_argument('-da', '--np_data_dir', type=str,
                       help='Directory containing numpy files')
-
 
     CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
     options = []
@@ -84,10 +91,39 @@ if __name__ == '__main__':
     args2 = args.parse_args()
     fold_id = int(args2.fold_id)
 
-    config = ConfigParser.from_args(args, fold_id, options)
-    if "shhs" in args2.np_data_dir:
-        folds_data = load_folds_data_shhs(args2.np_data_dir, config["data_loader"]["args"]["num_folds"])
+    # ------------------------------------------------------------------
+    #  device 설정 로직
+    # ------------------------------------------------------------------
+    if args2.device.lower() == "cpu":
+        device = torch.device("cpu")
+    elif args2.device.lower() == "mps":
+        # Apple Silicon용 MPS 가속 확인
+        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+            device = torch.device("mps")
+        else:
+            print("MPS is not available or not built. Fallback to CPU.")
+            device = torch.device("cpu")
     else:
-        folds_data = load_folds_data(args2.np_data_dir, config["data_loader"]["args"]["num_folds"])
+        # "cuda:0" 등으로 인식하여 사용
+        # 만약 torch.cuda.is_available() == False 라면 CPU로 fallback
+        cuda_str = f"cuda:{args2.device}"
+        device = torch.device(cuda_str if torch.cuda.is_available() else "cpu")
+    # ------------------------------------------------------------------
 
-    main(config, fold_id)
+    # Config load
+    config = ConfigParser.from_args(args, fold_id, options)
+
+    # Load folds data
+    if "shhs" in args2.np_data_dir:
+        folds_data = load_folds_data_shhs(
+            args2.np_data_dir,
+            config["data_loader"]["args"]["num_folds"]
+        )
+    else:
+        folds_data = load_folds_data(
+            args2.np_data_dir,
+            config["data_loader"]["args"]["num_folds"]
+        )
+
+    # Run train
+    main(config, fold_id, device)

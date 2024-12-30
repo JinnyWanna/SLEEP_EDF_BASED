@@ -45,7 +45,7 @@ def load_folds_data(np_data_path, n_folds):
     files_pairs = []
     for key in files_dict:
         files_pairs.append(files_dict[key])
-    files_pairs = np.array(files_pairs)
+    files_pairs = np.array(files_pairs, dtype=object) # dtype=object 수정
     files_pairs = files_pairs[r_permute]
 
     train_files = np.array_split(files_pairs, n_folds)
