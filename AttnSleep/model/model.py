@@ -293,7 +293,7 @@ class TCE(nn.Module):
             x = layer(x)
         return self.norm(x)
 
-# 인코더로 주파수신호 숫자로 변환
+# Feedforward, MHA 레이어등을 연결할 때 이용한다.
 class EncoderLayer(nn.Module):
     '''
     An encoder layer
@@ -317,6 +317,8 @@ class EncoderLayer(nn.Module):
         return self.sublayer_output[1](x, self.feed_forward)
 
 
+# MHA로 얻은 정보를 차원을 늘려 크게 학습한다.
+#
 class PositionwiseFeedForward(nn.Module):
     "Positionwise feed-forward network."
 
@@ -331,7 +333,7 @@ class PositionwiseFeedForward(nn.Module):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
 
 
-
+# MHA와 Feedforward를 결합한 Layer
 class AttnSleep(nn.Module):
     def __init__(self):
         super(AttnSleep, self).__init__()
@@ -357,6 +359,7 @@ class AttnSleep(nn.Module):
         encoded_features = self.tce(x_feat)
         encoded_features = encoded_features.contiguous().view(encoded_features.shape[0], -1)
         final_output = self.fc(encoded_features)
+        # output을 위해 차원을 class수(5)로 변경해준다.
         return final_output
 
 ######################################################################
