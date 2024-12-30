@@ -8,26 +8,38 @@ from copy import deepcopy
 
 ########################################################################################
 
+# B, C, L : batch, channel, length
+# channel : number of feature maps
 
-class SELayer(nn.Module):
+class SELayer(nn.Module): # Adaptive Avgpooling -> FC -> FC로 구성되는 형태
     def __init__(self, channel, reduction=16):
+        """
+        Squeeze-and-Excitation (SE) Layer 초기화.
+        
+        Args:
+            channel (int): 입력 텐서의 채널 수
+            reduction (int): 채널 축소 비율
+        """
         super(SELayer, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool1d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(channel, channel // reduction, bias=False),
+        self.avg_pool = nn.AdaptiveAvgPool1d(1) # average pooling하는 레이어를 정의한다.
+        # (B, C, L) -> (B, C, 1) : 길이 1로 pooling한다.
+
+        self.fc = nn.Sequential( #fc layer를 구성한다.
+            nn.Linear(channel, channel // reduction, bias=False), # (B, C) -> (B, C//r)
             nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Linear(channel // reduction, channel, bias=False), # (B, C//r) -> (B, C)
             nn.Sigmoid()
         )
 
-    def forward(self, x):
+    def forward(self, x): # x : torch.Tensor (B, C, L)
         b, c, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1)
-        return x * y.expand_as(x)
+        y = self.avg_pool(x).view(b, c) # (B, C, L) -> (B, C, 1) -> (B, C) 
+        y = self.fc(y).view(b, c, 1) # (B, C) -> (B, C, 1)
+        return x * y.expand_as(x) # y : 채널의 중요도를 계산한 것
 
 
-class SEBasicBlock(nn.Module):
+class SEBasicBlock(nn.Module): 
+    # convolution -> batch -> convolution -> batch -> SELayer
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
@@ -57,12 +69,14 @@ class SEBasicBlock(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
+        # residual connection으로 input값 더해준다.
         out += residual
         out = self.relu(out)
 
         return out
 
 class GELU(nn.Module):
+    # GELU: 구버전엔 Gelu가 구현이 되어있지 않아, 선언한다.
     # for older versions of PyTorch.  For new versions you can use nn.GELU() instead.
     def __init__(self):
         super(GELU, self).__init__()
@@ -72,11 +86,15 @@ class GELU(nn.Module):
         return x
         
         
+
 class MRCNN(nn.Module):
+    # multi Resolution CNN 선언
     def __init__(self, afr_reduced_cnn_size):
         super(MRCNN, self).__init__()
         drate = 0.5
         self.GELU = GELU()  # for older versions of PyTorch.  For new versions use nn.GELU() instead.
+
+        # small kernel branch 이용. 고주파수 정보 출력
         self.features1 = nn.Sequential(
             nn.Conv1d(1, 64, kernel_size=50, stride=6, bias=False, padding=24),
             nn.BatchNorm1d(64),
@@ -95,6 +113,7 @@ class MRCNN(nn.Module):
             nn.MaxPool1d(kernel_size=4, stride=4, padding=2)
         )
 
+        # wide kernel branch 이용. 저주파수 정보 출력
         self.features2 = nn.Sequential(
             nn.Conv1d(1, 64, kernel_size=400, stride=50, bias=False, padding=200),
             nn.BatchNorm1d(64),
@@ -134,6 +153,7 @@ class MRCNN(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        # 저주파수 정보, 고주파수 정보를 concatenate한다.
         x1 = self.features1(x)
         x2 = self.features2(x)
         x_concat = torch.cat((x1, x2), dim=2)
@@ -145,16 +165,24 @@ class MRCNN(nn.Module):
 
 
 def attention(query, key, value, dropout=None):
+    #attention **함수** 선언.
     "Implementation of Scaled dot product attention"
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    # query와 key의 dot product를 계산, 연관성 측정
+    # embedding size로 나눠준다.
+    # scalar
 
     p_attn = F.softmax(scores, dim=-1)
+    # 위 결과를 softmax 활성함수에 집어넣는다.
+
     if dropout is not None:
         p_attn = dropout(p_attn)
     return torch.matmul(p_attn, value), p_attn
+    # 결과값은 Value를 이용하여 vector화
 
-
+# input (B, C, L)
+# Masked Multi-head Attention의 경우, word 예측 시 미래의 word를 모르고 예측을 해야 하므로 CasualConvolution을 이용하여 과거, 현재의 정보만 받는다.
 class CausalConv1d(torch.nn.Conv1d):
     def __init__(self,
                  in_channels,
@@ -165,7 +193,7 @@ class CausalConv1d(torch.nn.Conv1d):
                  groups=1,
                  bias=True):
         self.__padding = (kernel_size - 1) * dilation
-
+        #Padding 크기를 계산하여, 현재와 과거만 참조하도록 한다.
         super(CausalConv1d, self).__init__(
             in_channels,
             out_channels,
@@ -180,6 +208,7 @@ class CausalConv1d(torch.nn.Conv1d):
         result = super(CausalConv1d, self).forward(input)
         if self.__padding != 0:
             return result[:, :, :-self.__padding]
+            #패딩이 추가된 경우, 출력의 마지막 부분을 제거
         return result
 
 class MultiHeadedAttention(nn.Module):
@@ -188,6 +217,7 @@ class MultiHeadedAttention(nn.Module):
         super(MultiHeadedAttention, self).__init__()
         assert d_model % h == 0
         self.d_k = d_model // h
+        # embedding size // number of heads
         self.h = h
 
         self.convs = clones(CausalConv1d(afr_reduced_cnn_size, afr_reduced_cnn_size, kernel_size=7, stride=1), 3)
@@ -209,7 +239,8 @@ class MultiHeadedAttention(nn.Module):
 
         return self.linear(x)
 
-
+# Layer normalization 구현
+# 벡터의 마지막 차원으로 정규화
 class LayerNorm(nn.Module):
     "Construct a layer normalization module."
 
@@ -262,7 +293,7 @@ class TCE(nn.Module):
             x = layer(x)
         return self.norm(x)
 
-
+# 인코더로 주파수신호 숫자로 변환
 class EncoderLayer(nn.Module):
     '''
     An encoder layer
