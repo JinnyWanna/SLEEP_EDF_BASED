@@ -1,5 +1,5 @@
 {
-    "name": "Exp1",
+    "name": "Exp2_EDF20",
     "n_gpu": 8,
 
     "arch": {
@@ -9,8 +9,8 @@
     },
     "data_loader": {
         "args":{
-            "batch_size": 128,
-            "num_folds": 20
+            "batch_size": 256,
+            "num_folds": 5
         }
     },
     "optimizer": {
@@ -26,9 +26,9 @@
         "accuracy"
     ],
     "trainer": {
-        "epochs": 100,
+        "epochs": 10,
         "save_dir": "saved/",
-        "save_period": 30,
+        "save_period": 2,
         "verbosity": 2,
         "monitor": "min val_loss"
     }

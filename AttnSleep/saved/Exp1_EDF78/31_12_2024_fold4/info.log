@@ -1,0 +1,138 @@
+2024-12-31 10:10:59,320 - train - INFO - AttnSleep(
+  (mrcnn): MRCNN(
+    (GELU): GELU()
+    (features1): Sequential(
+      (0): Conv1d(1, 64, kernel_size=(50,), stride=(6,), padding=(24,), bias=False)
+      (1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): GELU()
+      (3): MaxPool1d(kernel_size=8, stride=2, padding=4, dilation=1, ceil_mode=False)
+      (4): Dropout(p=0.5, inplace=False)
+      (5): Conv1d(64, 128, kernel_size=(8,), stride=(1,), padding=(4,), bias=False)
+      (6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (7): GELU()
+      (8): Conv1d(128, 128, kernel_size=(8,), stride=(1,), padding=(4,), bias=False)
+      (9): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (10): GELU()
+      (11): MaxPool1d(kernel_size=4, stride=4, padding=2, dilation=1, ceil_mode=False)
+    )
+    (features2): Sequential(
+      (0): Conv1d(1, 64, kernel_size=(400,), stride=(50,), padding=(200,), bias=False)
+      (1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): GELU()
+      (3): MaxPool1d(kernel_size=4, stride=2, padding=2, dilation=1, ceil_mode=False)
+      (4): Dropout(p=0.5, inplace=False)
+      (5): Conv1d(64, 128, kernel_size=(7,), stride=(1,), padding=(3,), bias=False)
+      (6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (7): GELU()
+      (8): Conv1d(128, 128, kernel_size=(7,), stride=(1,), padding=(3,), bias=False)
+      (9): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (10): GELU()
+      (11): MaxPool1d(kernel_size=2, stride=2, padding=1, dilation=1, ceil_mode=False)
+    )
+    (dropout): Dropout(p=0.5, inplace=False)
+    (AFR): Sequential(
+      (0): SEBasicBlock(
+        (conv1): Conv1d(128, 30, kernel_size=(1,), stride=(1,))
+        (bn1): BatchNorm1d(30, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv1d(30, 30, kernel_size=(1,), stride=(1,))
+        (bn2): BatchNorm1d(30, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (se): SELayer(
+          (avg_pool): AdaptiveAvgPool1d(output_size=1)
+          (fc): Sequential(
+            (0): Linear(in_features=30, out_features=1, bias=False)
+            (1): ReLU(inplace=True)
+            (2): Linear(in_features=1, out_features=30, bias=False)
+            (3): Sigmoid()
+          )
+        )
+        (downsample): Sequential(
+          (0): Conv1d(128, 30, kernel_size=(1,), stride=(1,), bias=False)
+          (1): BatchNorm1d(30, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
+      )
+    )
+  )
+  (tce): TCE(
+    (layers): ModuleList(
+      (0-1): 2 x EncoderLayer(
+        (self_attn): MultiHeadedAttention(
+          (convs): ModuleList(
+            (0-2): 3 x CausalConv1d(30, 30, kernel_size=(7,), stride=(1,), padding=(6,))
+          )
+          (linear): Linear(in_features=80, out_features=80, bias=True)
+          (dropout): Dropout(p=0.1, inplace=False)
+        )
+        (feed_forward): PositionwiseFeedForward(
+          (w_1): Linear(in_features=80, out_features=120, bias=True)
+          (w_2): Linear(in_features=120, out_features=80, bias=True)
+          (dropout): Dropout(p=0.1, inplace=False)
+        )
+        (sublayer_output): ModuleList(
+          (0-1): 2 x SublayerOutput(
+            (norm): LayerNorm()
+            (dropout): Dropout(p=0.1, inplace=False)
+          )
+        )
+        (conv): CausalConv1d(30, 30, kernel_size=(7,), stride=(1,), padding=(6,))
+      )
+    )
+    (norm): LayerNorm()
+  )
+  (fc): Linear(in_features=2400, out_features=5, bias=True)
+)
+2024-12-31 10:27:31,370 - trainer - INFO -     epoch          : 1
+2024-12-31 10:27:31,370 - trainer - INFO -     loss           : 0.7538974951793798
+2024-12-31 10:27:31,370 - trainer - INFO -     accuracy       : 0.7088196391072322
+2024-12-31 10:27:31,370 - trainer - INFO -     val_loss       : 1.0079477456712276
+2024-12-31 10:27:31,370 - trainer - INFO -     val_accuracy   : 0.6149653495179064
+2024-12-31 10:28:19,699 - trainer - INFO -     epoch          : 2
+2024-12-31 10:28:19,700 - trainer - INFO -     loss           : 0.6210566521350053
+2024-12-31 10:28:19,700 - trainer - INFO -     accuracy       : 0.7678084843274381
+2024-12-31 10:28:19,700 - trainer - INFO -     val_loss       : 1.1356280193920776
+2024-12-31 10:28:19,700 - trainer - INFO -     val_accuracy   : 0.5779738076790633
+2024-12-31 10:28:19,748 - trainer - INFO - Saving checkpoint: saved/Exp1/31_12_2024_10_10_59_fold4/checkpoint-epoch2.pth ...
+2024-12-31 10:44:06,525 - trainer - INFO -     epoch          : 3
+2024-12-31 10:44:06,526 - trainer - INFO -     loss           : 0.5948046631346005
+2024-12-31 10:44:06,526 - trainer - INFO -     accuracy       : 0.7783344230435788
+2024-12-31 10:44:06,526 - trainer - INFO -     val_loss       : 1.7628515165735295
+2024-12-31 10:44:06,526 - trainer - INFO -     val_accuracy   : 0.5058077221074381
+2024-12-31 10:44:54,837 - trainer - INFO -     epoch          : 4
+2024-12-31 10:44:54,838 - trainer - INFO -     loss           : 0.5819447517489181
+2024-12-31 10:44:54,838 - trainer - INFO -     accuracy       : 0.7829041319885948
+2024-12-31 10:44:54,838 - trainer - INFO -     val_loss       : 1.5357227457477138
+2024-12-31 10:44:54,838 - trainer - INFO -     val_accuracy   : 0.4874983858471075
+2024-12-31 10:44:54,885 - trainer - INFO - Saving checkpoint: saved/Exp1/31_12_2024_10_10_59_fold4/checkpoint-epoch4.pth ...
+2024-12-31 10:45:53,784 - trainer - INFO -     epoch          : 5
+2024-12-31 10:45:53,784 - trainer - INFO -     loss           : 0.5701663055785271
+2024-12-31 10:45:53,784 - trainer - INFO -     accuracy       : 0.7882050304878049
+2024-12-31 10:45:53,784 - trainer - INFO -     val_loss       : 0.7690581465281094
+2024-12-31 10:45:53,784 - trainer - INFO -     val_accuracy   : 0.7222085915977962
+2024-12-31 10:51:46,286 - trainer - INFO -     epoch          : 6
+2024-12-31 10:51:46,286 - trainer - INFO -     loss           : 0.5648685564738691
+2024-12-31 10:51:46,287 - trainer - INFO -     accuracy       : 0.7907845131102378
+2024-12-31 10:51:46,287 - trainer - INFO -     val_loss       : 0.9668022319460623
+2024-12-31 10:51:46,287 - trainer - INFO -     val_accuracy   : 0.6943138774104683
+2024-12-31 10:51:46,348 - trainer - INFO - Saving checkpoint: saved/Exp1/31_12_2024_10_10_59_fold4/checkpoint-epoch6.pth ...
+2024-12-31 10:52:40,489 - trainer - INFO -     epoch          : 7
+2024-12-31 10:52:40,490 - trainer - INFO -     loss           : 0.5599215235943666
+2024-12-31 10:52:40,490 - trainer - INFO -     accuracy       : 0.7917316880514778
+2024-12-31 10:52:40,490 - trainer - INFO -     val_loss       : 0.681889908234139
+2024-12-31 10:52:40,490 - trainer - INFO -     val_accuracy   : 0.7620458849862259
+2024-12-31 10:53:34,476 - trainer - INFO -     epoch          : 8
+2024-12-31 10:53:34,476 - trainer - INFO -     loss           : 0.5549314764061999
+2024-12-31 10:53:34,476 - trainer - INFO -     accuracy       : 0.7948558752841675
+2024-12-31 10:53:34,476 - trainer - INFO -     val_loss       : 1.3108207026397753
+2024-12-31 10:53:34,476 - trainer - INFO -     val_accuracy   : 0.4917016399793388
+2024-12-31 10:53:34,539 - trainer - INFO - Saving checkpoint: saved/Exp1/31_12_2024_10_10_59_fold4/checkpoint-epoch8.pth ...
+2024-12-31 10:54:28,491 - trainer - INFO -     epoch          : 9
+2024-12-31 10:54:28,492 - trainer - INFO -     loss           : 0.5512564497253906
+2024-12-31 10:54:28,492 - trainer - INFO -     accuracy       : 0.7958587398373984
+2024-12-31 10:54:28,492 - trainer - INFO -     val_loss       : 0.7654974624596379
+2024-12-31 10:54:28,492 - trainer - INFO -     val_accuracy   : 0.7544512956267218
+2024-12-31 10:55:22,077 - trainer - INFO -     epoch          : 10
+2024-12-31 10:55:22,078 - trainer - INFO -     loss           : 0.5490248017778141
+2024-12-31 10:55:22,078 - trainer - INFO -     accuracy       : 0.7975371043328324
+2024-12-31 10:55:22,078 - trainer - INFO -     val_loss       : 0.7338285533191855
+2024-12-31 10:55:22,078 - trainer - INFO -     val_accuracy   : 0.7553530690426997
+2024-12-31 10:55:22,142 - trainer - INFO - Saving checkpoint: saved/Exp1/31_12_2024_10_10_59_fold4/checkpoint-epoch10.pth ...

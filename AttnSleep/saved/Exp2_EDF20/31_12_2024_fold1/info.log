@@ -1,0 +1,140 @@
+2025-01-02 14:11:44,066 - train - INFO - AttnSleep(
+  (mrcnn): MRCNN(
+    (GELU): GELU()
+    (features1): Sequential(
+      (0): Conv1d(1, 64, kernel_size=(50,), stride=(6,), padding=(24,), bias=False)
+      (1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): GELU()
+      (3): MaxPool1d(kernel_size=8, stride=2, padding=4, dilation=1, ceil_mode=False)
+      (4): Dropout(p=0.5, inplace=False)
+      (5): Conv1d(64, 128, kernel_size=(8,), stride=(1,), padding=(4,), bias=False)
+      (6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (7): GELU()
+      (8): Conv1d(128, 128, kernel_size=(8,), stride=(1,), padding=(4,), bias=False)
+      (9): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (10): GELU()
+      (11): MaxPool1d(kernel_size=4, stride=4, padding=2, dilation=1, ceil_mode=False)
+    )
+    (features2): Sequential(
+      (0): Conv1d(1, 64, kernel_size=(400,), stride=(50,), padding=(200,), bias=False)
+      (1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): GELU()
+      (3): MaxPool1d(kernel_size=4, stride=2, padding=2, dilation=1, ceil_mode=False)
+      (4): Dropout(p=0.5, inplace=False)
+      (5): Conv1d(64, 128, kernel_size=(7,), stride=(1,), padding=(3,), bias=False)
+      (6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (7): GELU()
+      (8): Conv1d(128, 128, kernel_size=(7,), stride=(1,), padding=(3,), bias=False)
+      (9): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (10): GELU()
+      (11): MaxPool1d(kernel_size=2, stride=2, padding=1, dilation=1, ceil_mode=False)
+    )
+    (dropout): Dropout(p=0.5, inplace=False)
+    (AFR): Sequential(
+      (0): SEBasicBlock(
+        (conv1): Conv1d(128, 30, kernel_size=(1,), stride=(1,))
+        (bn1): BatchNorm1d(30, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (relu): ReLU(inplace=True)
+        (conv2): Conv1d(30, 30, kernel_size=(1,), stride=(1,))
+        (bn2): BatchNorm1d(30, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (se): SELayer(
+          (avg_pool): AdaptiveAvgPool1d(output_size=1)
+          (fc): Sequential(
+            (0): Linear(in_features=30, out_features=1, bias=False)
+            (1): ReLU(inplace=True)
+            (2): Linear(in_features=1, out_features=30, bias=False)
+            (3): Sigmoid()
+          )
+        )
+        (downsample): Sequential(
+          (0): Conv1d(128, 30, kernel_size=(1,), stride=(1,), bias=False)
+          (1): BatchNorm1d(30, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
+      )
+    )
+  )
+  (tce): TCE(
+    (layers): ModuleList(
+      (0-1): 2 x EncoderLayer(
+        (self_attn): MultiHeadedAttention(
+          (convs): ModuleList(
+            (0-2): 3 x CausalConv1d(30, 30, kernel_size=(7,), stride=(1,), padding=(6,))
+          )
+          (linear): Linear(in_features=80, out_features=80, bias=True)
+          (dropout): Dropout(p=0.1, inplace=False)
+        )
+        (feed_forward): PositionwiseFeedForward(
+          (w_1): Linear(in_features=80, out_features=120, bias=True)
+          (w_2): Linear(in_features=120, out_features=80, bias=True)
+          (dropout): Dropout(p=0.1, inplace=False)
+        )
+        (sublayer_output): ModuleList(
+          (0-1): 2 x SublayerOutput(
+            (norm): LayerNorm()
+            (dropout): Dropout(p=0.1, inplace=False)
+          )
+        )
+        (conv): CausalConv1d(30, 30, kernel_size=(7,), stride=(1,), padding=(6,))
+      )
+    )
+    (norm): LayerNorm()
+  )
+  (fc): Linear(in_features=2400, out_features=5, bias=True)
+)
+2025-01-02 14:12:02,105 - trainer - INFO -     epoch          : 1
+2025-01-02 14:12:02,105 - trainer - INFO -     loss           : 0.9123986102067507
+2025-01-02 14:12:02,105 - trainer - INFO -     accuracy       : 0.6561932425213675
+2025-01-02 14:12:02,105 - trainer - INFO -     val_loss       : 1.7945647348423261
+2025-01-02 14:12:02,105 - trainer - INFO -     val_accuracy   : 0.5276586835776454
+2025-01-02 14:12:12,890 - trainer - INFO -     epoch          : 2
+2025-01-02 14:12:12,890 - trainer - INFO -     loss           : 0.638424087029237
+2025-01-02 14:12:12,891 - trainer - INFO -     accuracy       : 0.777106704059829
+2025-01-02 14:12:12,891 - trainer - INFO -     val_loss       : 0.6533117749401041
+2025-01-02 14:12:12,891 - trainer - INFO -     val_accuracy   : 0.7826815162620246
+2025-01-02 14:12:12,946 - trainer - INFO - Saving checkpoint: saved/Exp2_EDF20/02_01_2025_14_11_44_fold1/checkpoint-epoch2.pth ...
+2025-01-02 14:12:12,996 - trainer - INFO - Saving current best: model_best.pth ...
+2025-01-02 14:12:23,823 - trainer - INFO -     epoch          : 3
+2025-01-02 14:12:23,824 - trainer - INFO -     loss           : 0.5666533722327306
+2025-01-02 14:12:23,824 - trainer - INFO -     accuracy       : 0.8079994658119658
+2025-01-02 14:12:23,825 - trainer - INFO -     val_loss       : 0.7300617485433012
+2025-01-02 14:12:23,825 - trainer - INFO -     val_accuracy   : 0.7160659070087037
+2025-01-02 14:12:34,276 - trainer - INFO -     epoch          : 4
+2025-01-02 14:12:34,276 - trainer - INFO -     loss           : 0.5506672844290733
+2025-01-02 14:12:34,276 - trainer - INFO -     accuracy       : 0.8104567307692307
+2025-01-02 14:12:34,276 - trainer - INFO -     val_loss       : 0.639076441526413
+2025-01-02 14:12:34,276 - trainer - INFO -     val_accuracy   : 0.786662920865781
+2025-01-02 14:12:34,326 - trainer - INFO - Saving checkpoint: saved/Exp2_EDF20/02_01_2025_14_11_44_fold1/checkpoint-epoch4.pth ...
+2025-01-02 14:12:34,368 - trainer - INFO - Saving current best: model_best.pth ...
+2025-01-02 14:12:44,698 - trainer - INFO -     epoch          : 5
+2025-01-02 14:12:44,698 - trainer - INFO -     loss           : 0.5007945780570691
+2025-01-02 14:12:44,698 - trainer - INFO -     accuracy       : 0.8305154914529914
+2025-01-02 14:12:44,698 - trainer - INFO -     val_loss       : 1.5150590261092056
+2025-01-02 14:12:44,698 - trainer - INFO -     val_accuracy   : 0.627460418575355
+2025-01-02 14:12:55,444 - trainer - INFO -     epoch          : 6
+2025-01-02 14:12:55,445 - trainer - INFO -     loss           : 0.5012620756259332
+2025-01-02 14:12:55,445 - trainer - INFO -     accuracy       : 0.8310897435897436
+2025-01-02 14:12:55,445 - trainer - INFO -     val_loss       : 1.3151267428655882
+2025-01-02 14:12:55,445 - trainer - INFO -     val_accuracy   : 0.6480008875400824
+2025-01-02 14:12:55,493 - trainer - INFO - Saving checkpoint: saved/Exp2_EDF20/02_01_2025_14_11_44_fold1/checkpoint-epoch6.pth ...
+2025-01-02 14:13:06,156 - trainer - INFO -     epoch          : 7
+2025-01-02 14:13:06,156 - trainer - INFO -     loss           : 0.5266550073256859
+2025-01-02 14:13:06,156 - trainer - INFO -     accuracy       : 0.8225560897435897
+2025-01-02 14:13:06,156 - trainer - INFO -     val_loss       : 1.3983837994369301
+2025-01-02 14:13:06,156 - trainer - INFO -     val_accuracy   : 0.6364091846083372
+2025-01-02 14:13:16,774 - trainer - INFO -     epoch          : 8
+2025-01-02 14:13:16,774 - trainer - INFO -     loss           : 0.5196561192090695
+2025-01-02 14:13:16,775 - trainer - INFO -     accuracy       : 0.8233673878205129
+2025-01-02 14:13:16,775 - trainer - INFO -     val_loss       : 1.7090999611930267
+2025-01-02 14:13:16,775 - trainer - INFO -     val_accuracy   : 0.5406461148648649
+2025-01-02 14:13:16,826 - trainer - INFO - Saving checkpoint: saved/Exp2_EDF20/02_01_2025_14_11_44_fold1/checkpoint-epoch8.pth ...
+2025-01-02 14:13:27,868 - trainer - INFO -     epoch          : 9
+2025-01-02 14:13:27,869 - trainer - INFO -     loss           : 0.4879953423371682
+2025-01-02 14:13:27,869 - trainer - INFO -     accuracy       : 0.8357138087606837
+2025-01-02 14:13:27,869 - trainer - INFO -     val_loss       : 0.6260186349217957
+2025-01-02 14:13:27,869 - trainer - INFO -     val_accuracy   : 0.778644640403115
+2025-01-02 14:13:38,583 - trainer - INFO -     epoch          : 10
+2025-01-02 14:13:38,584 - trainer - INFO -     loss           : 0.46881085015260254
+2025-01-02 14:13:38,584 - trainer - INFO -     accuracy       : 0.8420539529914529
+2025-01-02 14:13:38,584 - trainer - INFO -     val_loss       : 0.82144253197554
+2025-01-02 14:13:38,584 - trainer - INFO -     val_accuracy   : 0.7336341903344022
+2025-01-02 14:13:38,633 - trainer - INFO - Saving checkpoint: saved/Exp2_EDF20/02_01_2025_14_11_44_fold1/checkpoint-epoch10.pth ...

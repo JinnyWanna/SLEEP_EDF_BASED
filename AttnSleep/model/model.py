@@ -155,7 +155,9 @@ class MRCNN(nn.Module):
     def forward(self, x):
         # 저주파수 정보, 고주파수 정보를 concatenate한다.
         x1 = self.features1(x)
+        # x1 : small kernel branch
         x2 = self.features2(x)
+        # x2 : large kernel branch
         x_concat = torch.cat((x1, x2), dim=2)
         x_concat = self.dropout(x_concat)
         x_concat = self.AFR(x_concat)

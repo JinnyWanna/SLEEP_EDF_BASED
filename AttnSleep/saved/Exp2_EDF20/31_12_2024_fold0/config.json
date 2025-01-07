@@ -1,0 +1,33 @@
+{
+    "name": "Exp2_EDF20",
+    "n_gpu": 8,
+    "arch": {
+        "type": "AttnSleep",
+        "args": {}
+    },
+    "data_loader": {
+        "args": {
+            "batch_size": 256,
+            "num_folds": 5
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "args": {
+            "lr": 0.001,
+            "weight_decay": 0.001,
+            "amsgrad": true
+        }
+    },
+    "loss": "weighted_CrossEntropyLoss",
+    "metrics": [
+        "accuracy"
+    ],
+    "trainer": {
+        "epochs": 10,
+        "save_dir": "saved/",
+        "save_period": 2,
+        "verbosity": 2,
+        "monitor": "min val_loss"
+    }
+}
